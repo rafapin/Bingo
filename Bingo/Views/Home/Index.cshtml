@@ -1,0 +1,269 @@
+﻿@{
+    ViewData["Title"] = "Inicio";
+}
+<style>
+    canvas {
+        border: 2px solid black;
+        border-radius: 10px;
+        background-color: rgba(128, 128, 128,0.6);
+    }
+</style>
+<div class="text-center">
+    <h1 class="display-4">Hola <span id="name"></span> ,Bienvenido a BingoFamily</h1>
+    <div> Hay <span class="badge bg-primary text-white" id="cant"></span> Usuarios Conectados</div>
+</div>
+<div class="row">
+    <div class="col-5 col-sm-12">
+        <button onclick="GetBalotas()" class="btn btn-primary">Activar Audio</button>
+        
+    </div>
+    <div class="col-7 col-sm-12 text-right" id="menu">
+        <button onclick="Reset()" class="btn btn-danger">Resetear</button>
+        <button onclick="Pause()" class="btn btn-secondary">Reanudar / Pausar</button>
+    </div>
+</div>
+   
+    
+
+<div class="row">
+    <div class="col-12">
+
+        <table class="table-responsive">
+            <tr>
+                <td>
+                    <canvas id="canvas"></canvas>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+
+<script>
+   
+
+
+
+           
+
+            //Clase de propiedades del esquema
+            class System {
+                canvas = null;
+                width = 1100;    //Ancho del Esquema en PX
+                height = this.width/2;   //Relacion de altura
+                sizetag = this.width / 23;  //Relacion de tamaño de elementos
+                sizetextbaloon = this.width / 5;  //Relacion de tamaño de elementos
+                director = null;            //Elemento para estado refresh
+                actual = null;
+                numero = null;
+                estado = 0;
+
+                //Posiciones de los elementos de forma escalable segun el tamaño del Canvas
+                canvas_xy = [{ position: 0, x: this.width / 9.14, y: this.width / 3.2, isHovering: false },
+                    { position: 1, x: this.width / 4.1, y: this.width / 3.2, isHovering: false},
+                    { position: 2, x: this.width / 3.08, y: this.width / 3.2, isHovering: false},
+                    { position: 3, x: this.width / 2.34, y: this.width / 3.97, isHovering: false},
+                    { position: 4, x: this.width / 1.8, y: this.width / 3.8, isHovering: false },
+                    { position: 5, x: this.width / 1.6, y: this.width / 3.8, isHovering: false },
+                    { position: 6, x: this.width / 1.4, y: this.width / 3.8, isHovering: false }];
+
+                background = new Image();                           //Bakcground
+                tag = [];                                           //Array de Datos
+                status = ["#FFFFFF", "#FB3207 ", "#077FFB", "#80FF7E"];   //Array de Imagenes de Estado
+                leter = ["B", "I", "N", "G", "O","O"];
+                textbaloon = new Image();
+                availableNumbers = [];
+
+                constructor(canvas) {
+                    //Carga de Canvas , dimensiones e Imágenes
+                    this.canvas = document.getElementById("canvas");
+                    this.ctx = canvas.getContext("2d");
+                    this.canvas.width = this.width;
+                    this.canvas.height = this.height;
+                    
+                }
+                DrawCircle(color, x, y, number,size=25) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, size, 0, (Math.PI / 180) * 360, true);
+                    this.ctx.fillStyle = this.status[color];
+                    this.ctx.fill();
+                    this.ctx.closePath();
+
+                    this.ctx.beginPath();
+                    this.ctx.fillStyle = "black";
+                    if (number != null) {
+                        if (size == 25) {
+                            this.ctx.font = "bold 15pt Verdana center";
+                            this.ctx.fillText(number, x - 10, y + 8);
+                        }
+                        else {
+                            this.ctx.font = "bold 40pt Verdana center";                            
+                            this.ctx.fillText(number, x - 45, y + 15);
+                        }
+                        
+                        
+                        this.ctx.closePath();
+                    }
+                    
+                }
+
+                //Método que grafica los elementos en el Canvas
+                Show() {
+                    //Primero se limpia el canvas
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    //Carga de Fondo
+
+                    this.ctx.drawImage(this.background, 0, 0, this.width, this.height);
+                    this.ctx.stroke;
+
+                    //Cargar letras
+                    this.DrawCircle(2, 100, 60, "B");
+                    this.DrawCircle(2, 100, 120, "I");
+                    this.DrawCircle(2, 100, 180, "N");
+                    this.DrawCircle(2, 100, 240, "G");
+                    this.DrawCircle(2, 100, 300, "O");
+
+                    //Se cargan todos los elementos como inactivos
+                    for (var item of this.tag) {
+                        var delta = 60;
+                        var x = delta * ((item.number-1) % 15)+180;
+                        var y = delta*Math.ceil(item.number / 15);
+
+                        OSystem.DrawCircle(item.status, x, y, item.number);
+                        
+                    }
+
+                    //Numero actual
+                    this.DrawCircle(3, 600, 450, this.actual, 80);
+
+                }
+               
+
+                Reset() {
+                    OSystem.tag = [];
+                    OSystem.availableNumbers = [];
+                    for (var i = 1; i <= 75; i++) {
+                        OSystem.tag.push({ number: i, status: 0 });
+                        OSystem.availableNumbers.push(i);
+                    }
+                    this.Show();
+                }
+                GenerateNumber() {
+                    var max = this.availableNumbers.length;
+                    var min = 0;
+                    var aleatorio = Math.floor(Math.random() * (max - min) + min);
+                    aleatorio = this.availableNumbers[aleatorio];
+                    this.numero = aleatorio;
+                    var res = Math.floor(aleatorio / 15);
+                    this.actual = this.leter[res] + aleatorio;
+                }
+                Modify() {
+                    this.tag.find(x => x.number == this.numero).status = 1;
+                    var f = this.availableNumbers.indexOf(this.numero);
+                    this.availableNumbers.splice(f, 1);
+
+                }
+                Spech() {
+
+                    let textoAEscuchar = this.actual;
+                    let mensaje = new SpeechSynthesisUtterance();
+                    mensaje.volume = 3;
+                    mensaje.rate = 0.5;
+                    mensaje.text = textoAEscuchar;
+                    mensaje.pitch = 1;
+                    // ¡Parla!
+                    speechSynthesis.speak(mensaje)
+                }
+
+
+                //Método al iniciar el sistema
+                Init() {
+                    this.Reset();
+                    this.Show();    //Se grafican
+                }
+                RefreshOnline(data) {
+                    var aleatorio = data;
+                    this.numero = aleatorio;
+                    var res = Math.floor(aleatorio / 15);
+                    this.actual = this.leter[res] + aleatorio;
+
+                    this.Modify();
+                    this.Show();
+                    this.Spech();
+                }
+                Continue() {
+                    this.director = setInterval(() => {
+                        this.GenerateNumber();
+                        connection.invoke("SendNumber", OSystem.numero);
+                        this.Modify();
+                        this.Show();
+                        this.Spech();
+                    }, 8000)
+                }
+                Pause() {
+                    if (this.estado == 0) {
+                        clearInterval(OSystem.director);
+                        this.ctx.beginPath();
+                        this.ctx.fillStyle = "black";
+                        this.ctx.font = "bold 55pt Verdana center";
+                        this.ctx.fillText("Pausado", 100, 450);
+                        this.ctx.closePath();
+                    }
+                    else {
+                        this.Continue();
+                    }
+                }
+
+            }
+            var OSystem = new System(canvas);   //Al cargar la página se crea el objeto del Screen
+
+            //Iniciar al cargar toda la página
+            window.onload = function () {
+                $("#menu").toggle();
+                OSystem.Init();    //Inicializar el Screen cuando se hallan cargado todos los elementos necesarios
+                
+            }
+
+
+    
+    //Conexion Signal R
+    var connection = new signalR.HubConnectionBuilder().withUrl("/bingohub").build();
+
+    //Agregar al grupo para estar notificado de cambios en este sistema
+    connection.start().then(function () {
+        connection.invoke("AddList", valor);
+        console.log("Conectado");
+    });
+
+       //Recibe aviso si hubo un cambio en este sistema y actualiza datos
+    connection.on("ReceiveNumber", function (data) {
+        OSystem.RefreshOnline(data);
+    });
+
+    connection.on("Recibir", (data) => {
+        alert(data);
+    });
+    function GetBalotas() {
+        OSystem.Spech();
+    }
+    function Reset() {
+        OSystem.Reset();
+    }
+    function Pause() {
+        if (OSystem.estado == 0) OSystem.estado = 1;
+        else OSystem.estado = 0;
+        OSystem.Pause();
+    }
+   
+
+    connection.on("MostrarConectados", (data) => {
+        $("#cant").html(data);
+    });
+    connection.on("MostraConectados", (data) => {
+        $("#cant").html(data);
+    });
+
+    
+
+</script>    
